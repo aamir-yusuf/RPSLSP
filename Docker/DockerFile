@@ -1,0 +1,31 @@
+# Start from a small official Python image (Debian-based, without extra tooling).
+# This is the base layer that every other instruction builds on.
+FROM python:3.12-slim
+
+# Set the working directory inside the container. All later commands run from /app,
+# and the directory is created automatically if it doesn't exist.
+WORKDIR /app
+
+# Copy only the dependency list first. Docker caches each layer, so as long as
+# requirements.txt doesn't change, the pip install step below is reused on rebuilds.
+COPY requirements.txt .
+
+# Install the Python dependencies (Flask and gunicorn).
+# --no-cache-dir stops pip storing download caches, which keeps the image smaller.
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code into the image. This comes after the install step so
+# that code changes don't invalidate the cached dependency layer.
+COPY rock_paper_scissors_lizard_spock.py .
+
+
+# Document that the container listens on port 8080. This is metadata only and does not
+# publish the port; Container Apps uses its own target_port setting to route traffic.
+EXPOSE 8080
+
+# The command that runs when the container starts. Gunicorn is a production-grade
+# WSGI server (Flask's built-in server is for development only).
+#   -b 0.0.0.0:8080 binds to all interfaces so traffic from outside the container
+#                   can reach it (127.0.0.1 would only accept local connections)
+#   app:app         means "the object named app inside the module app.py"
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "rock_paper_scissors_lizard_spock:app"]
